@@ -1,6 +1,6 @@
 import flet as ft
 import colorgram
-from PIL import Image  # Resim sıkıştırma motoru
+from PIL import Image  # Hız motorumuz
 import os
 
 def main(page: ft.Page):
@@ -21,19 +21,18 @@ def main(page: ft.Page):
         y = (1 - b/255 - k) / (1 - k)
         return round(c*100), round(m*100), round(y*100), round(k*100)
 
-    # --- DOSYA SEÇİLİNCE ---
+    # --- DOSYA İŞLEMLERİ ---
     def on_file_picked(e: ft.FilePickerResultEvent):
         if e.files:
             dosya_yolu = e.files[0].path
             analiz_baslat(dosya_yolu)
 
-    # --- ANALİZ MOTORU (TURBO MODU) ---
+    # --- TURBO ANALİZ MOTORU ---
     def analiz_baslat(resim_yolu):
-        # Arayüzü Hazırla
         loading_ring.visible = True
-        buttons_container.visible = False # Butonları gizle
+        btn_action.visible = False
         img_preview.visible = False
-        loading_text.value = "Görüntü işleniyor..."
+        loading_text.value = "Hızlı analiz yapılıyor..."
         loading_text.visible = True
         page.update()
 
@@ -42,10 +41,10 @@ def main(page: ft.Page):
             img_preview.src = resim_yolu
             img_preview.visible = True
             
-            # 2. Sıkıştırma (Hız için)
+            # 2. HIZLI SIKIŞTIRMA (Turbo Mod)
             img = Image.open(resim_yolu)
-            img.thumbnail((150, 150)) # Küçük kopyasını oluştur
-            kucuk_resim_yolu = os.path.join(os.path.dirname(resim_yolu), "temp_small_scan.jpg")
+            img.thumbnail((150, 150))
+            kucuk_resim_yolu = os.path.join(os.path.dirname(resim_yolu), "temp_turbo.jpg")
             img.save(kucuk_resim_yolu)
 
             # 3. Renk Analizi
@@ -57,7 +56,7 @@ def main(page: ft.Page):
                 hex_kod = "#{:02x}{:02x}{:02x}".format(rgb.r, rgb.g, rgb.b)
                 cmyk = rgb_to_cmyk(rgb.r, rgb.g, rgb.b)
                 
-                # Renk Kartı
+                # Kart Tasarımı
                 kart = ft.Container(
                     content=ft.Row([
                         ft.Container(width=60, height=60, bgcolor=hex_kod, border_radius=10, border=ft.border.all(1, "#00F3FF")),
@@ -78,16 +77,16 @@ def main(page: ft.Page):
             if os.path.exists(kucuk_resim_yolu):
                 os.remove(kucuk_resim_yolu)
 
-            # Bitiş
             loading_ring.visible = False
             loading_text.visible = False
-            buttons_container.visible = True # Butonları geri getir
+            btn_action.text = "YENİ FOTOĞRAF"
+            btn_action.visible = True
             page.update()
 
         except Exception as e:
             loading_ring.visible = False
             loading_text.visible = False
-            buttons_container.visible = True
+            btn_action.visible = True
             page.snack_bar = ft.SnackBar(ft.Text(f"Hata: {e}"), bgcolor="red")
             page.snack_bar.open = True
             page.update()
@@ -103,38 +102,22 @@ def main(page: ft.Page):
     page.overlay.append(file_picker)
 
     app_bar = ft.AppBar(title=ft.Text("VISUAL BRAIN", weight="BOLD", color="#00F3FF"), bgcolor="#1B1B2F", center_title=True)
-    
     img_preview = ft.Image(src="", width=300, height=300, fit=ft.ImageFit.CONTAIN, visible=False, border_radius=15)
     
-    # --- YENİ BUTONLAR ---
-    btn_gallery = ft.ElevatedButton(
-        text="GALERİ", 
-        icon=ft.Icons.IMAGE, 
-        bgcolor="#1B1B2F", color="#00F3FF", 
-        width=140, height=50, 
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), side=ft.BorderSide(1, "#00F3FF")),
+    # TEK VE GÜÇLÜ BUTON
+    btn_action = ft.ElevatedButton(
+        text="FOTOĞRAF EKLE / ÇEK", 
+        icon=ft.Icons.ADD_A_PHOTO, 
+        bgcolor="#00F3FF", color="black", 
+        width=280, height=55, # Daha büyük ve basılabilir
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=12)),
         on_click=lambda _: file_picker.pick_files(allow_multiple=False)
     )
 
-    btn_camera = ft.ElevatedButton(
-        text="KAMERA", 
-        icon=ft.Icons.CAMERA_ALT, 
-        bgcolor="#00F3FF", color="black", 
-        width=140, height=50, 
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)),
-        on_click=lambda _: file_picker.pick_files(allow_multiple=False) 
-        # Not: Mobilde dosya seçici açılınca "Kamera" seçeneği çıkar.
-    )
-
-    # Butonları yan yana koymak için Row (Satır) kullanıyoruz
-    buttons_container = ft.Row([btn_gallery, btn_camera], alignment="CENTER", spacing=20)
-
     loading_ring = ft.ProgressRing(color="#00F3FF", visible=False)
     loading_text = ft.Text("", color="yellow", visible=False)
-    
     colors_column = ft.Column(spacing=10, scroll="AUTO")
 
-    # Sayfaya Ekle
     page.add(
         app_bar, 
         ft.Column([
@@ -143,7 +126,7 @@ def main(page: ft.Page):
             loading_ring, 
             loading_text, 
             ft.Container(height=20), 
-            buttons_container, # Çift butonu buraya koyduk
+            btn_action, 
             ft.Container(height=20), 
             colors_column
         ], horizontal_alignment="CENTER", alignment="CENTER", scroll="AUTO")
