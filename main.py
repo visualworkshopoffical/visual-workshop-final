@@ -1,5 +1,6 @@
 import flet as ft
 import colorgram
+from PIL import Image  # Resim işleme motoru
 import os
 
 def main(page: ft.Page):
@@ -29,13 +30,26 @@ def main(page: ft.Page):
         loading_ring.visible = True
         btn_upload.visible = False
         img_preview.visible = False
+        loading_text.value = "Görüntü işleniyor..."
+        loading_text.visible = True
         page.update()
 
         try:
+            # 1. RESMİ EKRANDA GÖSTER (Orijinal Kalite)
             img_preview.src = resim_yolu
             img_preview.visible = True
             
-            renkler = colorgram.extract(resim_yolu, 5)
+            # 2. TURBO MODU: Analiz için resmi küçült
+            # Resmi Pillow ile aç
+            img = Image.open(resim_yolu)
+            # Resmi 150 piksele kadar küçült (Hız için yeterli)
+            img.thumbnail((150, 150))
+            # Küçük resmi geçici olarak kaydet
+            kucuk_resim_yolu = os.path.join(os.path.dirname(resim_yolu), "temp_small_scan.jpg")
+            img.save(kucuk_resim_yolu)
+
+            # 3. RENKLERİ BUL (Küçük resimden - ŞİMŞEK GİBİ OLACAK)
+            renkler = colorgram.extract(kucuk_resim_yolu, 5)
             colors_column.controls.clear()
 
             for renk in renkler:
@@ -59,13 +73,19 @@ def main(page: ft.Page):
                 )
                 colors_column.controls.append(kart)
             
+            # Geçici dosyayı temizle
+            if os.path.exists(kucuk_resim_yolu):
+                os.remove(kucuk_resim_yolu)
+
             loading_ring.visible = False
+            loading_text.visible = False
             btn_upload.text = "BAŞKA FOTOĞRAF SEÇ"
             btn_upload.visible = True
             page.update()
 
         except Exception as e:
             loading_ring.visible = False
+            loading_text.visible = False
             page.snack_bar = ft.SnackBar(ft.Text(f"Hata: {e}"), bgcolor="red")
             page.snack_bar.open = True
             page.update()
@@ -83,12 +103,12 @@ def main(page: ft.Page):
     app_bar = ft.AppBar(title=ft.Text("VISUAL BRAIN", weight="BOLD", color="#00F3FF"), bgcolor="#1B1B2F", center_title=True)
     img_preview = ft.Image(src="", width=300, height=300, fit=ft.ImageFit.CONTAIN, visible=False, border_radius=15)
     
-    # HATA DÜZELTİLMİŞTİR
     btn_upload = ft.ElevatedButton(text="GALERİDEN SEÇ", icon=ft.Icons.PHOTO_LIBRARY, bgcolor="#00F3FF", color="black", width=250, height=50, on_click=lambda _: file_picker.pick_files(allow_multiple=False))
 
     loading_ring = ft.ProgressRing(color="#00F3FF", visible=False)
+    loading_text = ft.Text("", color="yellow", visible=False) # Bilgi yazısı
     colors_column = ft.Column(spacing=10, scroll="AUTO")
 
-    page.add(app_bar, ft.Column([ft.Container(height=20), img_preview, loading_ring, ft.Container(height=20), btn_upload, ft.Container(height=20), colors_column], horizontal_alignment="CENTER", alignment="CENTER", scroll="AUTO"))
+    page.add(app_bar, ft.Column([ft.Container(height=20), img_preview, loading_ring, loading_text, ft.Container(height=20), btn_upload, ft.Container(height=20), colors_column], horizontal_alignment="CENTER", alignment="CENTER", scroll="AUTO"))
 
 ft.app(target=main)
